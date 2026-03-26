@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GIGANT — Horeca Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg: #F5F0E8; --bg2: #EDE8E0; --bg3: #E4DED4; --surface: #FDFAF5;
+    --border: rgba(60,50,30,0.12); --border2: rgba(60,50,30,0.22);
+    --text: #1E1A14; --text2: #6B6358; --text3: #9A9088;
+    --accent: #D4600A; --accent-light: rgba(212,96,10,0.1); --accent2: #2A5C8A;
+    --pos: #276B3E; --neg: #B83B28;
+    --radius: 10px; --radius-lg: 16px;
+    --shadow: 0 1px 3px rgba(30,26,20,0.08), 0 4px 16px rgba(30,26,20,0.04);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; min-height: 100vh; }
+
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 32px; display: flex; align-items: center; justify-content: space-between; height: 60px; position: sticky; top: 0; z-index: 100; }
+  .logo { font-family: 'DM Serif Display', serif; font-size: 20px; color: var(--text); letter-spacing: -0.3px; }
+  .logo span { color: var(--accent); }
+  .header-right { display:flex; gap:10px; align-items:center; }
+  .btn-sm { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border2); background: transparent; color: var(--text2); font-family: 'Outfit', sans-serif; font-size: 13px; cursor: pointer; transition: all .15s; }
+  .btn-sm:hover { background: var(--bg2); color: var(--text); }
+  .lock-btn { display:flex; align-items:center; gap:6px; padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border2); background: transparent; font-family: 'Outfit', sans-serif; font-size: 13px; cursor: pointer; transition: all .15s; color: var(--text2); white-space: nowrap; }
+  .lock-btn:hover { background: var(--bg2); }
+  .lock-btn.unlocked { background: rgba(184,59,40,0.07); border-color: rgba(184,59,40,0.28); color: var(--neg); }
+  .lock-btn.unlocked:hover { background: rgba(184,59,40,0.14); }
+
+  .layout { display: grid; grid-template-columns: 260px 1fr; min-height: calc(100vh - 60px); }
+  .sidebar { background: var(--surface); border-right: 1px solid var(--border); padding: 24px 20px; display: flex; flex-direction: column; gap: 6px; }
+  .sidebar-label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; padding: 12px 10px 4px; }
+  .nav-item { padding: 8px 12px; border-radius: 8px; cursor: pointer; color: var(--text2); font-size: 14px; font-weight: 400; transition: all .12s; display: flex; align-items: center; gap: 8px; border: none; background: transparent; width: 100%; text-align: left; }
+  .nav-item:hover { background: var(--bg2); color: var(--text); }
+  .nav-item.active { background: var(--accent-light); color: var(--accent); font-weight: 500; }
+  .nav-icon { width: 16px; text-align: center; font-size: 14px; }
+
+  main { padding: 28px 32px; overflow-x: hidden; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .page-header { margin-bottom: 24px; display:flex; justify-content:space-between; align-items:flex-start; }
+  .page-title { font-family: 'DM Serif Display', serif; font-size: 26px; color: var(--text); margin-bottom: 2px; }
+  .page-sub { color: var(--text2); font-size: 13px; }
+
+  .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+  .metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); }
+  .metric-label { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .metric-value { font-size: 22px; font-weight: 600; color: var(--text); line-height: 1.1; }
+  .metric-delta { font-size: 12px; margin-top: 4px; }
+  .pos { color: var(--pos); } .neg { color: var(--neg); } .neutral { color: var(--text3); }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 22px; box-shadow: var(--shadow); margin-bottom: 20px; }
+  .card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+  .card-title { font-size: 14px; font-weight: 500; color: var(--text); }
+  .chart-wrap { position: relative; }
+  .legend { display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--text2); margin-bottom:12px; }
+  .legend span { display:flex; align-items:center; gap:5px; }
+  .ldot { width:10px; height:10px; border-radius:2px; display:inline-block; }
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: 'DM Mono', monospace; background: var(--accent-light); color: var(--accent); }
+
+  .insights-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .insight-card { background: var(--bg2); border-radius: var(--radius); padding: 14px 16px; border-left: 3px solid var(--accent); }
+  .insight-card.warning { border-color: var(--neg); }
+  .insight-card.good { border-color: var(--pos); }
+  .insight-card.info { border-color: var(--accent2); }
+  .insight-title { font-size: 11px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+  .insight-text { font-size: 13px; color: var(--text); line-height: 1.5; }
+
+  .table-wrap { overflow-x: auto; }
+  table { width:100%; border-collapse: collapse; font-size: 13px; }
+  th { padding: 8px 12px; background: var(--bg2); color: var(--text2); font-size: 10px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.06em; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th:first-child { text-align: left; }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--border); text-align: right; color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; white-space: nowrap; }
+  td:first-child { text-align: left; font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 500; }
+  tr:hover td { background: var(--bg2); }
+  tr:last-child td { border-bottom: none; }
+  .year-group td { background: var(--bg3); font-weight: 500; }
+  .year-group td:first-child { font-family: 'DM Serif Display', serif; font-size: 14px; }
+  .yoy-pos { color: var(--pos); } .yoy-neg { color: var(--neg); }
+
+  .edit-btn { padding:3px 10px; font-size:11px; border-radius:5px; border:1px solid var(--border2); background:transparent; color:var(--text2); cursor:pointer; font-family:'Outfit',sans-serif; transition:all .12s; }
+  .edit-btn:hover { background:var(--accent-light); color:var(--accent); border-color:rgba(212,96,10,0.3); }
+  .del-btn { padding:3px 8px; font-size:11px; border-radius:5px; border:1px solid rgba(184,59,40,0.22); background:transparent; color:var(--neg); cursor:pointer; font-family:'Outfit',sans-serif; transition:all .12s; }
+  .del-btn:hover { background:rgba(184,59,40,0.08); }
+
+  .form-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:14px; }
+  .form-group { display:flex; flex-direction:column; gap:5px; }
+  .form-label { font-size: 11px; color: var(--text2); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; font-family: 'DM Mono', monospace; }
+  .form-input { padding: 9px 12px; border: 1px solid var(--border2); border-radius: 7px; background: var(--surface); color: var(--text); font-family: 'DM Mono', monospace; font-size: 13px; transition: border-color .15s; outline: none; }
+  .form-input:focus { border-color: var(--accent); }
+  .form-input::placeholder { color: var(--text3); }
+  .form-hint { font-size: 11px; color: var(--text3); }
+  .form-actions { display:flex; gap:10px; align-items:center; margin-top:8px; }
+  .btn-lg { padding: 10px 22px; border-radius: 8px; border: none; background: var(--accent); color: #fff; font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: all .15s; }
+  .btn-lg:hover { background: #b85208; }
+  .btn-danger { background: var(--neg) !important; }
+  .btn-danger:hover { background: #8f2d1e !important; }
+  .form-msg { font-size: 13px; padding: 6px 12px; border-radius: 6px; display: none; }
+  .form-msg.success { background: rgba(39,107,62,0.1); color: var(--pos); display: block; }
+  .form-msg.error { background: rgba(184,59,40,0.1); color: var(--neg); display: block; }
+
+  .locked-notice { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:220px; gap:14px; color:var(--text3); text-align:center; }
+  .locked-notice .lock-big { font-size:40px; opacity:0.35; }
+  .locked-notice p { font-size:14px; max-width:280px; }
+
+  /* ── Modals ── */
+  .overlay { position:fixed; inset:0; background:rgba(30,26,20,0.42); z-index:999; display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity .18s; }
+  .overlay.open { opacity:1; pointer-events:all; }
+  .modal { background:var(--surface); border-radius:var(--radius-lg); padding:28px 30px; box-shadow:0 8px 40px rgba(30,26,20,0.18); transform:translateY(10px); transition:transform .2s; }
+  .overlay.open .modal { transform:translateY(0); }
+  .modal-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px; }
+  .modal-title { font-family:'DM Serif Display',serif; font-size:20px; }
+  .modal-sub { font-size:12px; color:var(--text3); margin-top:2px; }
+  .modal-x { background:none; border:none; font-size:18px; cursor:pointer; color:var(--text3); line-height:1; transition:color .12s; }
+  .modal-x:hover { color:var(--text); }
+  .modal-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px; }
+  .modal-footer { display:flex; justify-content:space-between; align-items:center; }
+  .modal-footer-r { display:flex; gap:8px; }
+  .modal-msg { font-size:12px; padding:5px 10px; border-radius:5px; display:none; margin-bottom:12px; }
+  .modal-msg.error { background:rgba(184,59,40,0.1); color:var(--neg); display:block; }
+  .modal-msg.success { background:rgba(39,107,62,0.1); color:var(--pos); display:block; }
+
+  /* Password modal */
+  .pw-modal { width:360px; max-width:95vw; }
+  .pw-title { font-family:'DM Serif Display',serif; font-size:22px; margin-bottom:6px; }
+  .pw-sub { font-size:13px; color:var(--text2); margin-bottom:18px; line-height:1.5; }
+  .pw-row { position:relative; margin-bottom:6px; }
+  .pw-input { width:100%; padding:10px 42px 10px 12px; border:1px solid var(--border2); border-radius:8px; background:var(--surface); color:var(--text); font-family:'DM Mono',monospace; font-size:14px; outline:none; transition:border-color .15s; }
+  .pw-input:focus { border-color:var(--accent); }
+  .pw-eye { position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:var(--text3); font-size:15px; }
+  .pw-err { font-size:12px; color:var(--neg); background:rgba(184,59,40,0.08); padding:6px 10px; border-radius:5px; display:none; margin-top:6px; }
+  .pw-err.show { display:block; }
+  .pw-hint { font-size:11px; color:var(--text3); margin-top:8px; }
+  .pw-actions { display:flex; gap:8px; margin-top:16px; }
+
+  /* Edit modal */
+  .edit-modal { width:540px; max-width:95vw; }
+
+  /* Tabel unlock hint */
+  .tabel-hint { font-size:12px; color:var(--text3); display:flex; align-items:center; gap:6px; align-self:center; }
+
+  .filter-bar { display:flex; flex-wrap:wrap; gap:7px; align-items:center; margin-bottom:18px; }
+  .filter-label { font-size:11px; font-family:'DM Mono',monospace; color:var(--text3); text-transform:uppercase; letter-spacing:0.06em; margin-right:2px; }
+  .pill { padding:5px 11px; border-radius:20px; border:1px solid var(--border2); background:transparent; color:var(--text2); font-family:'DM Mono',monospace; font-size:11px; cursor:pointer; transition:all .12s; }
+  .pill:hover { border-color:var(--accent); color:var(--accent); }
+  .pill.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .filter-divider { width:1px; height:20px; background:var(--border2); margin:0 2px; }
+  .filter-meta { font-size:12px; color:var(--text3); margin-left:auto; }
+  .heatmap-grid { display:grid; gap:3px; }
+  .hm-row { display:grid; gap:3px; }
+  .hm-cell { padding:9px 4px; text-align:center; border-radius:5px; font-family:'DM Mono',monospace; font-size:11px; font-weight:500; }
+  .hm-ylabel { display:flex; align-items:center; padding-right:8px; font-family:'DM Mono',monospace; font-size:11px; color:var(--text3); white-space:nowrap; }
+  .hm-xlabel { text-align:center; font-family:'DM Mono',monospace; font-size:10px; color:var(--text3); padding:4px 0; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg2); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  @media print {
+    header, .sidebar, #invoer-page { display:none!important; }
+    .layout { display:block; }
+    main { padding: 0; }
+    .page { display: block!important; }
+    .edit-col { display:none!important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Wachtwoord overlay ── -->
+<div class="overlay" id="pw-overlay">
+  <div class="modal pw-modal">
+    <div class="pw-title">Ontgrendelen</div>
+    <div class="pw-sub">Voer het wachtwoord in om historische maanddata te kunnen bewerken.</div>
+    <div class="pw-row">
+      <input class="pw-input" type="password" id="pw-input" placeholder="Wachtwoord" autocomplete="off">
+      <button class="pw-eye" onclick="togglePw()" tabindex="-1">👁</button>
+    </div>
+    <div class="pw-err" id="pw-err">Onjuist wachtwoord — probeer opnieuw.</div>
+
+    <div class="pw-actions">
+      <button class="btn-lg" onclick="submitPw()">Ontgrendelen</button>
+      <button class="btn-sm" onclick="closePw()">Annuleren</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Bewerk overlay ── -->
+<div class="overlay" id="edit-overlay">
+  <div class="modal edit-modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="edit-title">Maand bewerken</div>
+        <div class="modal-sub" id="edit-sub">Pas de waarden aan en klik op Opslaan</div>
+      </div>
+      <button class="modal-x" onclick="closeEdit()">✕</button>
+    </div>
+    <div class="modal-grid">
+      <div class="form-group"><label class="form-label">Omzet excl. btw (€)</label><input class="form-input" type="number" id="e-excl" step="0.01"></div>
+      <div class="form-group"><label class="form-label">Omzet incl. btw (€)</label><input class="form-input" type="number" id="e-incl" step="0.01"></div>
+      <div class="form-group"><label class="form-label">Kassabonnen</label><input class="form-input" type="number" id="e-bon" step="1"></div>
+      <div class="form-group"><label class="form-label">Filmbezoekers</label><input class="form-input" type="number" id="e-bez" step="1"></div>
+      <div class="form-group"><label class="form-label">€ per kassabon</label><input class="form-input" type="text" id="e-ppbon" readonly style="background:var(--bg2);color:var(--text2);cursor:default;"><span class="form-hint">Automatisch berekend</span></div>
+      <div class="form-group"><label class="form-label">€ per bezoeker</label><input class="form-input" type="text" id="e-ppbez" readonly style="background:var(--bg2);color:var(--text2);cursor:default;"><span class="form-hint">Automatisch berekend</span></div>
+    </div>
+    <div class="modal-msg" id="edit-msg"></div>
+    <div class="modal-footer">
+      <button class="btn-lg btn-danger" onclick="deleteFromEdit()">Verwijderen</button>
+      <div class="modal-footer-r">
+        <button class="btn-sm" onclick="closeEdit()">Annuleren</button>
+        <button class="btn-lg" onclick="saveEdit()">Opslaan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="logo">GIGANT <span>·</span> Horeca</div>
+  <div class="header-right">
+    <button class="btn-sm" onclick="exportCSV()">↓ Exporteer CSV</button>
+    <button class="btn-sm" onclick="window.print()">⎙ Print</button>
+    <button class="lock-btn" id="lock-btn" onclick="handleLock()">
+      <span id="lock-icon">🔒</span>
+      <span id="lock-label">Vergrendeld</span>
+    </button>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div class="sidebar-label">Overzicht</div>
+    <button class="nav-item active" onclick="showPage('dashboard',this)"><span class="nav-icon">◈</span> Dashboard</button>
+    <button class="nav-item" onclick="showPage('omzet',this)"><span class="nav-icon">↗</span> Omzet</button>
+    <button class="nav-item" onclick="showPage('bezoekers',this)"><span class="nav-icon">◎</span> Bezoekers</button>
+    <button class="nav-item" onclick="showPage('efficiency',this)"><span class="nav-icon">⊙</span> Efficiëntie</button>
+    <button class="nav-item" onclick="showPage('ppbez',this)"><span class="nav-icon">◑</span> Per bezoeker</button>
+    <div class="sidebar-label">Beheer</div>
+    <button class="nav-item" onclick="showPage('tabel',this)"><span class="nav-icon">≡</span> Alle data</button>
+    <button class="nav-item" onclick="showPage('invoer',this)"><span class="nav-icon">+</span> Maand toevoegen</button>
+    <button class="nav-item" onclick="showPage('analyse',this)"><span class="nav-icon">✦</span> Analyse</button>
+  </nav>
+
+  <main>
+
+    <!-- DASHBOARD -->
+    <div id="dashboard-page" class="page active">
+      <div class="page-header">
+        <div><div class="page-title">Dashboard</div><div class="page-sub" id="dash-sub"></div></div>
+        <button class="btn-sm" id="refresh-btn" onclick="hardRefresh()" style="align-self:center;">↺ Vernieuwen</button>
+      </div>
+      <div class="metric-grid" id="dash-metrics"></div>
+      <div class="grid-2">
+        <div class="card"><div class="card-header"><span class="card-title">Omzet excl. btw</span></div><div class="legend" id="lg-dash-omzet"></div><div class="chart-wrap" style="height:200px"><canvas id="c-dash-omzet"></canvas></div></div>
+        <div class="card"><div class="card-header"><span class="card-title">Filmbezoekers</span></div><div class="legend" id="lg-dash-bez"></div><div class="chart-wrap" style="height:200px"><canvas id="c-dash-bez"></canvas></div></div>
+      </div>
+      <div class="card"><div class="card-header"><span class="card-title">Aandachtspunten</span></div><div class="insights-grid" id="dash-insights"></div></div>
+    </div>
+
+    <!-- OMZET -->
+    <div id="omzet-page" class="page">
+      <div class="page-header"><div><div class="page-title">Omzet</div><div class="page-sub">Maandelijkse omzet en jaar-op-jaar vergelijking</div></div></div>
+      <div class="metric-grid" id="omzet-metrics"></div>
+      <div class="card"><div class="card-header"><span class="card-title">Omzet excl. btw per maand</span></div><div class="legend" id="lg-omzet"></div><div class="chart-wrap" style="height:260px"><canvas id="c-omzet"></canvas></div></div>
+      <div class="card"><div class="card-header"><span class="card-title">Jaar-op-jaar mutatie (%)</span><span class="tag" id="yoy-tag"></span></div><div class="chart-wrap" style="height:200px"><canvas id="c-yoy"></canvas></div></div>
+    </div>
+
+    <!-- BEZOEKERS -->
+    <div id="bezoekers-page" class="page">
+      <div class="page-header"><div><div class="page-title">Bezoekers</div><div class="page-sub">Filmbezoekers en kassabonnen per maand</div></div></div>
+      <div class="metric-grid" id="bez-metrics"></div>
+      <div class="card"><div class="card-header"><span class="card-title">Filmbezoekers per maand</span></div><div class="legend" id="lg-bez"></div><div class="chart-wrap" style="height:240px"><canvas id="c-bez"></canvas></div></div>
+      <div class="card"><div class="card-header"><span class="card-title">Kassabonnen per maand</span></div><div class="legend" id="lg-bon"></div><div class="chart-wrap" style="height:220px"><canvas id="c-bon"></canvas></div></div>
+    </div>
+
+    <!-- EFFICIËNTIE -->
+    <div id="efficiency-page" class="page">
+      <div class="page-header"><div><div class="page-title">Efficiëntie</div><div class="page-sub">Bestedingen per kassabon en per filmbezoeker (incl. btw)</div></div></div>
+      <div class="metric-grid" id="eff-metrics"></div>
+      <div class="card"><div class="card-header"><span class="card-title">€ per kassabon (incl. btw)</span></div><div class="legend" id="lg-ppbon"></div><div class="chart-wrap" style="height:220px"><canvas id="c-ppbon"></canvas></div></div>
+      <div class="card"><div class="card-header"><span class="card-title">€ per bezoeker (incl. btw)</span></div><div class="legend" id="lg-ppbez"></div><div class="chart-wrap" style="height:220px"><canvas id="c-ppbez"></canvas></div></div>
+    </div>
+
+    <!-- PER BEZOEKER -->
+    <div id="ppbez-page" class="page">
+      <div class="page-header"><div><div class="page-title">Omzet per bezoeker</div><div class="page-sub">Diepte-analyse bestedingen per filmbezoeker (incl. btw) — filter en vergelijk maanden</div></div></div>
+
+      <!-- Metric cards -->
+      <div class="metric-grid" id="ppbez-metrics"></div>
+
+      <!-- Tijdlijn -->
+      <div class="card">
+        <div class="card-header"><span class="card-title">Verloop omzet per bezoeker — alle maanden</span></div>
+        <div class="legend" id="lg-ppbez2"></div>
+        <div class="chart-wrap" style="height:240px"><canvas id="c-ppbez2"></canvas></div>
+      </div>
+
+      <!-- Maandvergelijker -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Maandvergelijker — selecteer maanden om naast elkaar te zetten</span>
+        </div>
+        <div class="filter-bar" id="month-pills">
+          <!-- filled by JS -->
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;" id="year-pills">
+          <!-- filled by JS -->
+        </div>
+        <div class="legend" id="lg-vergelijker"></div>
+        <div class="chart-wrap" style="height:260px"><canvas id="c-vergelijker"></canvas></div>
+        <div style="font-size:12px;color:var(--text3);margin-top:10px;" id="vergelijker-info"></div>
+      </div>
+
+      <!-- Heatmap -->
+      <div class="card">
+        <div class="card-header"><span class="card-title">Heatmap — omzet per bezoeker per maand/jaar</span><span class="tag">incl. btw</span></div>
+        <div id="heatmap-wrap" style="overflow-x:auto;"></div>
+      </div>
+
+      <!-- Ranglijst -->
+      <div class="card">
+        <div class="card-header"><span class="card-title">Ranglijst — alle maanden gesorteerd op omzet per bezoeker</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th style="text-align:left;">#</th>
+              <th style="text-align:left;">Maand</th>
+              <th>€ per bezoeker</th>
+              <th>€ per kassabon</th>
+              <th>Filmbezoekers</th>
+              <th>Kassabonnen</th>
+              <th>Conversie</th>
+              <th>Omzet excl. btw</th>
+            </tr></thead>
+            <tbody id="ppbez-ranking"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Inzichten -->
+      <div class="card">
+        <div class="card-header"><span class="card-title">Inzichten</span></div>
+        <div class="insights-grid" id="ppbez-insights"></div>
+      </div>
+    </div>
+
+    <!-- TABEL -->
+    <div id="tabel-page" class="page">
+      <div class="page-header">
+        <div><div class="page-title">Alle data</div><div class="page-sub" id="tabel-sub"></div></div>
+        <div class="tabel-hint" id="tabel-hint">🔒 Vergrendeld — ontgrendel om te bewerken</div>
+      </div>
+      <div class="card"><div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Maand</th><th>Excl. btw</th><th>Incl. btw</th>
+            <th>Kassabonnen</th><th>Filmbezoekers</th>
+            <th>€ / bon</th><th>€ / bezoeker</th><th>YoY</th>
+            <th class="edit-col" id="edit-col-th" style="display:none;"></th>
+          </tr></thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div></div>
+    </div>
+
+    <!-- INVOER -->
+    <div id="invoer-page" class="page">
+      <div class="page-header"><div><div class="page-title">Maand toevoegen</div><div class="page-sub">Voeg nieuwe maanddata toe. Grafieken updaten automatisch.</div></div></div>
+
+      <div id="invoer-locked" class="card locked-notice">
+        <div class="lock-big">🔒</div>
+        <p>Ontgrendel het dashboard om maanden toe te voegen of te bewerken.</p>
+        <button class="btn-lg" onclick="handleLock()">Ontgrendelen</button>
+      </div>
+
+      <div id="invoer-unlocked" style="display:none;">
+        <div class="card">
+          <div style="margin-bottom:18px;"><div class="card-title" style="margin-bottom:4px;">Nieuwe maand invoeren</div><p style="font-size:13px;color:var(--text2);">€ per bon en per bezoeker worden automatisch berekend als je die leeg laat.</p></div>
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">Jaar</label><select class="form-input" id="f-jaar"><option value="2024">2024</option><option value="2025">2025</option><option value="2026" selected>2026</option><option value="2027">2027</option></select></div>
+            <div class="form-group"><label class="form-label">Maand</label><select class="form-input" id="f-maand"><option value="0">Januari</option><option value="1">Februari</option><option value="2">Maart</option><option value="3">April</option><option value="4">Mei</option><option value="5">Juni</option><option value="6">Juli</option><option value="7">Augustus</option><option value="8">September</option><option value="9">Oktober</option><option value="10">November</option><option value="11">December</option></select></div>
+            <div class="form-group"><label class="form-label">Omzet excl. btw (€)</label><input class="form-input" type="number" id="f-excl" placeholder="bv. 9500.00" step="0.01"></div>
+            <div class="form-group"><label class="form-label">Omzet incl. btw (€)</label><input class="form-input" type="number" id="f-incl" placeholder="bv. 10688.00" step="0.01"></div>
+            <div class="form-group"><label class="form-label">Kassabonnen</label><input class="form-input" type="number" id="f-bon" placeholder="bv. 2100" step="1"></div>
+            <div class="form-group"><label class="form-label">Filmbezoekers</label><input class="form-input" type="number" id="f-bez" placeholder="bv. 4800" step="1"></div>
+            <div class="form-group"><label class="form-label">€ per kassabon (opt.)</label><input class="form-input" type="number" id="f-ppbon" placeholder="automatisch" step="0.01"><span class="form-hint">Leeg = automatisch berekend</span></div>
+            <div class="form-group"><label class="form-label">€ per bezoeker (opt.)</label><input class="form-input" type="number" id="f-ppbez" placeholder="automatisch" step="0.01"><span class="form-hint">Leeg = automatisch berekend</span></div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-lg" onclick="addMonth()">Maand toevoegen</button>
+            <button class="btn-sm" onclick="resetForm()">Wissen</button>
+            <span class="form-msg" id="form-msg"></span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <div class="card-title">Bestaande maanden bewerken</div>
+            <span style="font-size:11px;color:var(--text3);">Klik ✎ om te openen</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Maand</th><th>Excl. btw</th><th>Kassabonnen</th><th>Filmbezoekers</th><th>€/bon</th><th>€/bez.</th><th></th></tr></thead>
+              <tbody id="recent-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ANALYSE -->
+    <div id="analyse-page" class="page">
+      <div class="page-header"><div><div class="page-title">Analyse</div><div class="page-sub" id="analyse-sub"></div></div></div>
+      <div id="analyse-content"></div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ════════════════════════════════════════
+//  Pas hier het wachtwoord aan
+const PASSWORD = 'gigant';
+// ════════════════════════════════════════
+
+const MONTHS     = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+const MONTHS_FULL = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
+const YEAR_COLORS = {2024:'#3266ad',2025:'#D4600A',2026:'#276B3E',2027:'#6B4A9E'};
+
+let data = [
+  {jaar:2024,maand:0,excl:11308.30,incl:12668.71,bons:2531,bez:5393,ppbon:5.01,ppbez:2.35},
+  {jaar:2024,maand:1,excl:12109.39,incl:13648.12,bons:2599,bez:5809,ppbon:5.25,ppbez:2.35},
+  {jaar:2024,maand:2,excl:9756.60,incl:10954.70,bons:2200,bez:4503,ppbon:4.98,ppbez:2.43},
+  {jaar:2024,maand:3,excl:6415.87,incl:7190.64,bons:1653,bez:3484,ppbon:4.35,ppbez:2.06},
+  {jaar:2024,maand:4,excl:4763.74,incl:5345.42,bons:1335,bez:2716,ppbon:4.00,ppbez:1.97},
+  {jaar:2024,maand:5,excl:4703.16,incl:5247.44,bons:1305,bez:2213,ppbon:4.02,ppbez:2.37},
+  {jaar:2024,maand:6,excl:5288.79,incl:5924.15,bons:1340,bez:2461,ppbon:4.42,ppbez:2.41},
+  {jaar:2024,maand:7,excl:3474.47,incl:3869.28,bons:1027,bez:2813,ppbon:3.77,ppbez:1.38},
+  {jaar:2024,maand:8,excl:5876.70,incl:6537.31,bons:1607,bez:2746,ppbon:4.07,ppbez:2.38},
+  {jaar:2024,maand:9,excl:7181.12,incl:8093.03,bons:1788,bez:4138,ppbon:4.53,ppbez:1.96},
+  {jaar:2024,maand:10,excl:8909.16,incl:10001.43,bons:2043,bez:4021,ppbon:4.90,ppbez:2.49},
+  {jaar:2024,maand:11,excl:9361.48,incl:10496.16,bons:2045,bez:4116,ppbon:5.13,ppbez:2.55},
+  {jaar:2025,maand:0,excl:9544.34,incl:10633.50,bons:2155,bez:4702,ppbon:4.93,ppbez:2.26},
+  {jaar:2025,maand:1,excl:9561.47,incl:10751.89,bons:2060,bez:5005,ppbon:5.22,ppbez:2.15},
+  {jaar:2025,maand:2,excl:8398.36,incl:9416.33,bons:1993,bez:3639,ppbon:4.72,ppbez:2.59},
+  {jaar:2025,maand:3,excl:6160.81,incl:6912.92,bons:1561,bez:3008,ppbon:4.43,ppbez:2.30},
+  {jaar:2025,maand:4,excl:8122.05,incl:9098.56,bons:1778,bez:4778,ppbon:5.12,ppbez:1.90},
+  {jaar:2025,maand:5,excl:7609.45,incl:8505.24,bons:1661,bez:3328,ppbon:5.12,ppbez:2.56},
+  {jaar:2025,maand:6,excl:5809.68,incl:6488.64,bons:1376,bez:3500,ppbon:4.72,ppbez:1.85},
+  {jaar:2025,maand:7,excl:5980.41,incl:6675.72,bons:1359,bez:3860,ppbon:4.91,ppbez:1.73},
+  {jaar:2025,maand:8,excl:11783.89,incl:13322.23,bons:2615,bez:4384,ppbon:5.09,ppbez:3.04},
+  {jaar:2025,maand:9,excl:13012.17,incl:14664.91,bons:2864,bez:5269,ppbon:5.12,ppbez:2.78},
+  {jaar:2025,maand:10,excl:10623.35,incl:11927.12,bons:2397,bez:4615,ppbon:4.98,ppbez:2.58},
+  {jaar:2025,maand:11,excl:7338.28,incl:8215.60,bons:1796,bez:4116,ppbon:4.57,ppbez:2.00},
+  {jaar:2026,maand:0,excl:7899.02,incl:8804.02,bons:1873,bez:4702,ppbon:4.70,ppbez:1.87},
+  {jaar:2026,maand:1,excl:8834.77,incl:9856.97,bons:1980,bez:5005,ppbon:4.98,ppbez:1.97},
+];
+
+// ── State ──────────────────────────────
+let unlocked = false;
+let editKey  = null; // "jaar|maand"
+
+// ── Helpers ────────────────────────────
+const eur  = v => '€ ' + v.toLocaleString('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2});
+const eur0 = v => '€ ' + v.toLocaleString('nl-NL',{minimumFractionDigits:0,maximumFractionDigits:0});
+const pct  = v => (v>=0?'+':'')+v.toFixed(1)+'%';
+const num  = v => v.toLocaleString('nl-NL');
+const ml   = d => MONTHS[d.maand]+'-'+String(d.jaar).slice(2);
+const byYear = j => data.filter(d=>d.jaar===j).sort((a,b)=>a.maand-b.maand);
+const years  = () => [...new Set(data.map(d=>d.jaar))].sort();
+const sumY   = (j,k) => byYear(j).reduce((s,d)=>s+(d[k]||0),0);
+const avgY   = (j,k) => { const r=byYear(j); return r.length?r.reduce((s,d)=>s+(d[k]||0),0)/r.length:0; };
+const yoyFor = d => { const p=data.find(x=>x.jaar===d.jaar-1&&x.maand===d.maand); return p?((d.excl-p.excl)/p.excl)*100:null; };
+
+// ── Lock/unlock ────────────────────────
+function handleLock() { unlocked ? lock() : openPw(); }
+
+function lock() {
+  unlocked = false;
+  document.getElementById('lock-btn').classList.remove('unlocked');
+  document.getElementById('lock-icon').textContent = '🔒';
+  document.getElementById('lock-label').textContent = 'Vergrendeld';
+  document.getElementById('tabel-hint').style.display = 'flex';
+  document.getElementById('edit-col-th').style.display = 'none';
+  document.getElementById('invoer-locked').style.display = 'flex';
+  document.getElementById('invoer-unlocked').style.display = 'none';
+  renderTabel(); renderRecentTable();
+}
+
+function unlock() {
+  unlocked = true;
+  document.getElementById('lock-btn').classList.add('unlocked');
+  document.getElementById('lock-icon').textContent = '🔓';
+  document.getElementById('lock-label').textContent = 'Ontgrendeld — klik om te vergrendelen';
+  document.getElementById('tabel-hint').style.display = 'none';
+  document.getElementById('edit-col-th').style.display = '';
+  document.getElementById('invoer-locked').style.display = 'none';
+  document.getElementById('invoer-unlocked').style.display = 'block';
+  renderTabel(); renderRecentTable();
+}
+
+// ── Password modal ─────────────────────
+function openPw() {
+  document.getElementById('pw-input').value = '';
+  document.getElementById('pw-err').classList.remove('show');
+  document.getElementById('pw-overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('pw-input').focus(),120);
+}
+function closePw() { document.getElementById('pw-overlay').classList.remove('open'); }
+function togglePw() { const i=document.getElementById('pw-input'); i.type=i.type==='password'?'text':'password'; }
+function submitPw() {
+  if (document.getElementById('pw-input').value === PASSWORD) {
+    closePw(); unlock();
+  } else {
+    const e=document.getElementById('pw-err'); e.classList.add('show');
+    document.getElementById('pw-input').value='';
+    document.getElementById('pw-input').focus();
+    setTimeout(()=>e.classList.remove('show'),3000);
+  }
+}
+document.getElementById('pw-input').addEventListener('keydown', e=>{ if(e.key==='Enter')submitPw(); if(e.key==='Escape')closePw(); });
+document.getElementById('pw-overlay').addEventListener('click', e=>{ if(e.target===document.getElementById('pw-overlay'))closePw(); });
+
+// ── Edit modal ─────────────────────────
+function openEdit(jaar, maand) {
+  if (!unlocked) return;
+  const row = data.find(d=>d.jaar===jaar&&d.maand===maand);
+  if (!row) return;
+  editKey = `${jaar}|${maand}`;
+  document.getElementById('edit-title').textContent = `${MONTHS_FULL[maand]} ${jaar} bewerken`;
+  document.getElementById('edit-sub').textContent   = 'Pas de waarden aan en klik op Opslaan';
+  document.getElementById('e-excl').value  = row.excl.toFixed(2);
+  document.getElementById('e-incl').value  = row.incl.toFixed(2);
+  document.getElementById('e-bon').value   = row.bons;
+  document.getElementById('e-bez').value   = row.bez;
+  recalcEditTotals();
+  document.getElementById('edit-msg').className = 'modal-msg';
+  document.getElementById('edit-overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('e-excl').focus(),120);
+}
+
+function recalcEditTotals() {
+  const incl = parseFloat(document.getElementById('e-incl').value);
+  const bons = parseInt(document.getElementById('e-bon').value);
+  const bez  = parseInt(document.getElementById('e-bez').value);
+  document.getElementById('e-ppbon').value = (!isNaN(incl)&&!isNaN(bons)&&bons>0) ? (incl/bons).toFixed(2) : '—';
+  document.getElementById('e-ppbez').value = (!isNaN(incl)&&!isNaN(bez)&&bez>0)   ? (incl/bez).toFixed(2)  : '—';
+}
+
+// Attach live listeners once DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  ['e-incl','e-bon','e-bez'].forEach(id => {
+    document.getElementById(id).addEventListener('input', recalcEditTotals);
+  });
+});
+function closeEdit() { document.getElementById('edit-overlay').classList.remove('open'); editKey=null; }
+function saveEdit() {
+  if (!editKey) return;
+  const [jaar,maand] = editKey.split('|').map(Number);
+  const excl=parseFloat(document.getElementById('e-excl').value);
+  const incl=parseFloat(document.getElementById('e-incl').value);
+  const bons=parseInt(document.getElementById('e-bon').value);
+  const bez =parseInt(document.getElementById('e-bez').value);
+  const msg=document.getElementById('edit-msg');
+  if (isNaN(excl)||isNaN(incl)||isNaN(bons)||isNaN(bez)) { msg.className='modal-msg error'; msg.textContent='Vul alle verplichte velden in.'; return; }
+  const ppbon = bons>0 ? +(incl/bons).toFixed(2) : 0;
+  const ppbez = bez >0 ? +(incl/bez ).toFixed(2) : 0;
+  const idx = data.findIndex(d=>d.jaar===jaar&&d.maand===maand);
+  data[idx] = {jaar,maand,excl,incl,bons,bez,ppbon,ppbez};
+  msg.className='modal-msg success'; msg.textContent='Opgeslagen.';
+  renderAll();
+  setTimeout(closeEdit,600);
+}
+function deleteFromEdit() {
+  if (!editKey) return;
+  const [jaar,maand]=editKey.split('|').map(Number);
+  if (!confirm(`${MONTHS_FULL[maand]} ${jaar} definitief verwijderen?`)) return;
+  data=data.filter(d=>!(d.jaar===jaar&&d.maand===maand));
+  closeEdit(); renderAll();
+}
+document.getElementById('edit-overlay').addEventListener('click',e=>{ if(e.target===document.getElementById('edit-overlay'))closeEdit(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeEdit(); closePw(); } });
+
+// ── Charts ─────────────────────────────
+const charts = {};
+const gridC='rgba(60,50,30,0.07)', textC='#9A9088';
+const baseScale = {
+  x:{grid:{color:gridC},ticks:{color:textC,font:{size:11,family:'DM Mono'}}},
+  y:{grid:{color:gridC},ticks:{color:textC,font:{size:11,family:'DM Mono'}}}
+};
+const tip = {backgroundColor:'#1E1A14',titleColor:'#F5F0E8',bodyColor:'#9A9088',padding:10,cornerRadius:6,titleFont:{family:'DM Mono',size:11},bodyFont:{family:'DM Mono',size:11}};
+const baseOpts = {responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:tip},scales:baseScale};
+
+function mkChart(id,type,d,opts) {
+  if(charts[id]){ charts[id].destroy(); delete charts[id]; }
+  const old=document.getElementById(id);
+  if(!old)return;
+  const wrap=old.parentNode;
+  const newCanvas=document.createElement('canvas');
+  newCanvas.id=id;
+  wrap.replaceChild(newCanvas,old);
+  charts[id]=new Chart(newCanvas,{type,data:d,options:opts});
+}
+function mkLegend(id,yrs) {
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.innerHTML=yrs.map(y=>`<span><span class="ldot" style="background:${YEAR_COLORS[y]||'#888'}"></span>${y}</span>`).join('');
+}
+
+// ── Render all ─────────────────────────
+function renderAll() {
+  renderDash(); renderOmzet(); renderBez(); renderEff(); renderPpbez(); renderTabel(); renderRecentTable(); renderAnalyse();
+}
+
+// ── Dashboard ──────────────────────────
+function renderDash() {
+  const yrs=years(), cur=yrs[yrs.length-1], prev=cur-1;
+  const tC=sumY(cur,'excl'),tP=sumY(prev,'excl'),bC=sumY(cur,'bez'),bP=sumY(prev,'bez');
+  const best=[...data].sort((a,b)=>b.excl-a.excl)[0], worst=[...data].sort((a,b)=>a.excl-b.excl)[0];
+  document.getElementById('dash-sub').textContent=`${data.length} maanden — ${yrs[0]} t/m ${cur}`;
+  const gO=tP?(tC-tP)/tP*100:null, gB=bP?(bC-bP)/bP*100:null;
+  document.getElementById('dash-metrics').innerHTML=`
+    <div class="metric-card"><div class="metric-label">Totaal ${cur}</div><div class="metric-value">${eur0(tC)}</div><div class="metric-delta ${gO>=0?'pos':'neg'}">${gO!==null?(gO>=0?'▲':'▼')+' '+Math.abs(gO).toFixed(1)+'% vs '+prev:'—'}</div></div>
+    <div class="metric-card"><div class="metric-label">Bezoekers ${cur}</div><div class="metric-value">${num(bC)}</div><div class="metric-delta ${gB>=0?'pos':'neg'}">${gB!==null?(gB>=0?'▲':'▼')+' '+Math.abs(gB).toFixed(1)+'% vs '+prev:'—'}</div></div>
+    <div class="metric-card"><div class="metric-label">Beste maand ooit</div><div class="metric-value">${eur0(best.excl)}</div><div class="metric-delta neutral">${ml(best)}</div></div>
+    <div class="metric-card"><div class="metric-label">Zwakste maand ooit</div><div class="metric-value">${eur0(worst.excl)}</div><div class="metric-delta neutral">${ml(worst)}</div></div>
+  `;
+  mkLegend('lg-dash-omzet',yrs);
+  mkChart('c-dash-omzet','bar',{labels:MONTHS,datasets:yrs.map(y=>({label:''+y,data:byYear(y).map(d=>d.excl),backgroundColor:YEAR_COLORS[y]||'#888',borderRadius:3}))},{...baseOpts,scales:{...baseOpts.scales,y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>eur0(v)}}}});
+  mkLegend('lg-dash-bez',yrs);
+  mkChart('c-dash-bez','line',{labels:MONTHS,datasets:yrs.map(y=>({label:''+y,data:byYear(y).map(d=>d.bez),borderColor:YEAR_COLORS[y]||'#888',backgroundColor:(YEAR_COLORS[y]||'#888')+'18',tension:0.4,fill:true,pointRadius:2}))},{...baseOpts,scales:{...baseOpts.scales,y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>num(v)}}}});
+  // Insights
+  const ins=[];
+  if(tP){const g=(tC-tP)/tP*100;ins.push({t:g>0?'good':'warning',h:`Groei ${cur} vs ${prev}`,b:`Totaal ${cur}: ${eur0(tC)} (${pct(g)} t.o.v. ${prev}: ${eur0(tP)}).`});}
+  const yr=data.filter(d=>d.jaar===cur).map(d=>({d,y:yoyFor(d)})).filter(r=>r.y!==null);
+  if(yr.length){
+    const bs=[...yr].sort((a,b)=>b.y-a.y)[0],ws=[...yr].sort((a,b)=>a.y-b.y)[0];
+    ins.push({t:'info',h:'Sterkste maand YoY',b:`${ml(bs.d)}: ${pct(bs.y)} meer dan dezelfde maand vorig jaar (${eur0(bs.d.excl)}).`});
+    ins.push({t:ws.y<0?'warning':'info',h:'Zwakste maand YoY',b:`${ml(ws.d)}: ${pct(ws.y)} vs dezelfde maand vorig jaar (${eur0(ws.d.excl)}).`});
+  }
+  const ab=avgY(cur,'ppbez'),abP=avgY(prev,'ppbez');
+  if(abP){const d=(ab-abP)/abP*100;ins.push({t:Math.abs(d)<3?'info':d>0?'good':'warning',h:'Besteding per bezoeker',b:`Gem. ${eur(ab)} per bezoeker in ${cur}, vs ${eur(abP)} in ${prev} (${pct(d)}).`});}
+  document.getElementById('dash-insights').innerHTML=ins.map(i=>`<div class="insight-card ${i.t}"><div class="insight-title">${i.h}</div><div class="insight-text">${i.b}</div></div>`).join('');
+}
+
+// ── Omzet ──────────────────────────────
+function renderOmzet() {
+  const yrs=years(),cur=yrs[yrs.length-1],prev=cur-1;
+  const tC=sumY(cur,'excl'),tP=sumY(prev,'excl');
+  const best=[...data].sort((a,b)=>b.excl-a.excl)[0],worst=[...data].sort((a,b)=>a.excl-b.excl)[0];
+  document.getElementById('omzet-metrics').innerHTML=`
+    <div class="metric-card"><div class="metric-label">Totaal ${cur}</div><div class="metric-value">${eur0(tC)}</div><div class="metric-delta">${tP?pct((tC-tP)/tP*100):'—'} vs ${prev}</div></div>
+    <div class="metric-card"><div class="metric-label">Totaal ${prev}</div><div class="metric-value">${eur0(tP)}</div><div class="metric-delta neutral">${byYear(prev).length} maanden</div></div>
+    <div class="metric-card"><div class="metric-label">Recordmaand</div><div class="metric-value">${eur0(best.excl)}</div><div class="metric-delta neutral">${ml(best)}</div></div>
+    <div class="metric-card"><div class="metric-label">Dalmaand</div><div class="metric-value">${eur0(worst.excl)}</div><div class="metric-delta neutral">${ml(worst)}</div></div>
+  `;
+  mkLegend('lg-omzet',yrs);
+  mkChart('c-omzet','bar',{labels:MONTHS,datasets:yrs.map(y=>({label:''+y,data:byYear(y).map(d=>d.excl),backgroundColor:YEAR_COLORS[y]||'#888',borderRadius:3}))},{...baseOpts,scales:{...baseOpts.scales,y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>eur0(v)}}}});
+  document.getElementById('yoy-tag').textContent=`${cur} vs ${prev}`;
+  const yd=MONTHS.map((_,i)=>{const c=data.find(d=>d.jaar===cur&&d.maand===i),p=data.find(d=>d.jaar===prev&&d.maand===i);return(!c||!p)?null:+((c.excl-p.excl)/p.excl*100).toFixed(1);});
+  mkChart('c-yoy','bar',{labels:MONTHS,datasets:[{data:yd,backgroundColor:yd.map(v=>v===null?'#ccc':v>=0?'#276B3E':'#B83B28'),borderRadius:3}]},{...baseOpts,scales:{...baseOpts.scales,y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>v+'%'}}}});
+}
+
+// ── Bezoekers ──────────────────────────
+function renderBez() {
+  const yrs=years(),cur=yrs[yrs.length-1],prev=cur-1;
+  const bC=sumY(cur,'bez'),bP=sumY(prev,'bez'),bnC=sumY(cur,'bons');
+  const pk=[...data].sort((a,b)=>b.bez-a.bez)[0];
+  document.getElementById('bez-metrics').innerHTML=`
+    <div class="metric-card"><div class="metric-label">Bezoekers ${cur}</div><div class="metric-value">${num(bC)}</div><div class="metric-delta">${bP?pct((bC-bP)/bP*100):'—'} vs ${prev}</div></div>
+    <div class="metric-card"><div class="metric-label">Bezoekers ${prev}</div><div class="metric-value">${num(bP)}</div><div class="metric-delta neutral">${byYear(prev).length} maanden</div></div>
+    <div class="metric-card"><div class="metric-label">Kassabonnen ${cur}</div><div class="metric-value">${num(bnC)}</div><div class="metric-delta neutral">${cur}</div></div>
+    <div class="metric-card"><div class="metric-label">Bezoekerspiek</div><div class="metric-value">${num(pk.bez)}</div><div class="metric-delta neutral">${ml(pk)}</div></div>
+  `;
+  mkLegend('lg-bez',yrs);
+  mkChart('c-bez','line',{labels:MONTHS,datasets:yrs.map(y=>({label:''+y,data:byYear(y).map(d=>d.bez),borderColor:YEAR_COLORS[y]||'#888',backgroundColor:(YEAR_COLORS[y]||'#888')+'18',tension:0.4,fill:true,pointRadius:3}))},{...baseOpts,scales:{...baseOpts.scales,y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>num(v)}}}});
+  mkLegend('lg-bon',yrs);
+  mkChart('c-bon','bar',{labels:MONTHS,datasets:yrs.map(y=>({label:''+y,data:byYear(y).map(d=>d.bons),backgroundColor:YEAR_COLORS[y]||'#888',borderRadius:3}))},{...baseOpts,scales:{...baseOpts.scales,y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>num(v)}}}});
+}
+
+// ── Efficiëntie ────────────────────────
+function renderEff() {
+  const yrs=years(),cur=yrs[yrs.length-1],prev=cur-1;
+  const aB=avgY(cur,'ppbon'),aBP=avgY(prev,'ppbon'),aV=avgY(cur,'ppbez'),aVP=avgY(prev,'ppbez');
+  const mx=Math.max(...data.map(d=>d.ppbez)),mxR=data.find(d=>d.ppbez===mx);
+  document.getElementById('eff-metrics').innerHTML=`
+    <div class="metric-card"><div class="metric-label">Gem. per bon ${cur}</div><div class="metric-value">${eur(aB)}</div><div class="metric-delta">${aBP?pct((aB-aBP)/aBP*100):'—'} vs ${prev}</div></div>
+    <div class="metric-card"><div class="metric-label">Gem. per bezoeker ${cur}</div><div class="metric-value">${eur(aV)}</div><div class="metric-delta">${aVP?pct((aV-aVP)/aVP*100):'—'} vs ${prev}</div></div>
+    <div class="metric-card"><div class="metric-label">Record per bezoeker</div><div class="metric-value">${eur(mx)}</div><div class="metric-delta neutral">${mxR?ml(mxR):''}</div></div>
+    <div class="metric-card"><div class="metric-label">Gem. per bon ${prev}</div><div class="metric-value">${eur(aBP)}</div><div class="metric-delta neutral">${byYear(prev).length} maanden</div></div>
+  `;
+  const sorted=[...data].sort((a,b)=>a.jaar*100+a.maand-(b.jaar*100+b.maand));
+  const lbs=sorted.map(d=>ml(d)),cols=sorted.map(d=>YEAR_COLORS[d.jaar]||'#888');
+  const xTicks={...baseOpts.scales.x.ticks,maxRotation:45,autoSkip:false,callback:(v,i)=>i%2===0?lbs[i]:''};
+  mkLegend('lg-ppbon',yrs);
+  mkChart('c-ppbon','line',{labels:lbs,datasets:[{data:sorted.map(d=>d.ppbon),borderColor:'#534AB7',backgroundColor:'rgba(83,74,183,0.08)',tension:0.3,fill:true,pointRadius:2,pointBackgroundColor:cols}]},{...baseOpts,scales:{...baseOpts.scales,x:{...baseOpts.scales.x,ticks:xTicks},y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>'€'+v.toFixed(2)}}}});
+  mkLegend('lg-ppbez',yrs);
+  mkChart('c-ppbez','line',{labels:lbs,datasets:[{data:sorted.map(d=>d.ppbez),borderColor:'#0F6E56',backgroundColor:'rgba(15,110,86,0.08)',tension:0.3,fill:true,pointRadius:2,pointBackgroundColor:cols}]},{...baseOpts,scales:{...baseOpts.scales,x:{...baseOpts.scales.x,ticks:xTicks},y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>'€'+v.toFixed(2)}}}});
+}
+
+// ── Tabel ──────────────────────────────
+function renderTabel() {
+  const yrs=years();
+  document.getElementById('tabel-sub').textContent=`${data.length} maanden — ${yrs[0]} t/m ${yrs[yrs.length-1]}`;
+  let html='';
+  for(const jaar of yrs){
+    const rows=byYear(jaar);
+    const tot=rows.reduce((s,d)=>({excl:s.excl+d.excl,incl:s.incl+d.incl,bons:s.bons+d.bons,bez:s.bez+d.bez}),{excl:0,incl:0,bons:0,bez:0});
+    for(const d of rows){
+      const y=yoyFor(d);
+      const editTd=unlocked?`<td><button class="edit-btn" onclick="openEdit(${d.jaar},${d.maand})">✎ Bewerken</button></td>`:'';
+      html+=`<tr><td>${MONTHS_FULL[d.maand]} ${d.jaar}</td><td>${eur(d.excl)}</td><td>${eur(d.incl)}</td><td>${num(d.bons)}</td><td>${num(d.bez)}</td><td>${eur(d.ppbon)}</td><td>${eur(d.ppbez)}</td><td class="${y===null?'neutral':y>=0?'yoy-pos':'yoy-neg'}">${y===null?'—':pct(y)}</td>${editTd}</tr>`;
+    }
+    const editTd2=unlocked?'<td></td>':'';
+    html+=`<tr class="year-group"><td>Totaal ${jaar}</td><td>${eur(tot.excl)}</td><td>${eur(tot.incl)}</td><td>${num(tot.bons)}</td><td>${num(tot.bez)}</td><td>${eur(tot.bons?tot.incl/tot.bons:0)}</td><td>${eur(tot.bez?tot.incl/tot.bez:0)}</td><td>—</td>${editTd2}</tr>`;
+  }
+  document.getElementById('table-body').innerHTML=html;
+  document.getElementById('edit-col-th').style.display=unlocked?'':'none';
+}
+
+// ── Recent table ───────────────────────
+function renderRecentTable() {
+  if(!unlocked){document.getElementById('recent-table').innerHTML='';return;}
+  document.getElementById('recent-table').innerHTML=[...data].reverse().slice(0,10).map(d=>`
+    <tr>
+      <td>${MONTHS_FULL[d.maand]} ${d.jaar}</td><td>${eur(d.excl)}</td><td>${num(d.bons)}</td><td>${num(d.bez)}</td><td>${eur(d.ppbon)}</td><td>${eur(d.ppbez)}</td>
+      <td style="display:flex;gap:4px;justify-content:flex-end;">
+        <button class="edit-btn" onclick="openEdit(${d.jaar},${d.maand})">✎</button>
+        <button class="del-btn" onclick="delRow(${d.jaar},${d.maand})">✕</button>
+      </td>
+    </tr>`).join('');
+}
+
+function delRow(jaar,maand) {
+  if(!unlocked)return;
+  if(!confirm(`${MONTHS_FULL[maand]} ${jaar} verwijderen?`))return;
+  data=data.filter(d=>!(d.jaar===jaar&&d.maand===maand));
+  renderAll();
+}
+
+// ── Analyse ────────────────────────────
+function renderAnalyse() {
+  const yrs=years(),cur=yrs[yrs.length-1],prev=cur-1;
+  const cR=byYear(cur),pR=byYear(prev);
+  let html='';
+  if(pR.length){
+    const tC=cR.reduce((s,d)=>s+d.excl,0),tP=pR.reduce((s,d)=>s+d.excl,0);
+    const g=(tC-tP)/tP*100;
+    html+=`<div class="card"><div class="card-title" style="margin-bottom:12px;">Omzetgroei ${cur} vs ${prev}</div>
+      <p style="color:var(--text2);font-size:14px;line-height:1.8;margin-bottom:14px;">Over ${cR.length} maanden in ${cur} werd ${eur0(tC)} gerealiseerd (excl. btw). ${prev} kende over ${pR.length} maanden een totaal van ${eur0(tP)}. Verschil: <strong style="color:${g>=0?'var(--pos)':'var(--neg)'};">${pct(g)}</strong>.</p>
+      <div class="insights-grid">`;
+    const yr=cR.map(d=>({d,y:yoyFor(d)})).filter(r=>r.y!==null);
+    if(yr.length){const bs=[...yr].sort((a,b)=>b.y-a.y)[0],ws=[...yr].sort((a,b)=>a.y-b.y)[0];
+      html+=`<div class="insight-card good"><div class="insight-title">Sterkste maand YoY</div><div class="insight-text">${ml(bs.d)}: ${pct(bs.y)} groei</div></div>
+        <div class="insight-card ${ws.y<0?'warning':'good'}"><div class="insight-title">Zwakste maand YoY</div><div class="insight-text">${ml(ws.d)}: ${pct(ws.y)}</div></div>`;}
+    html+=`</div></div>`;
+  }
+  const oa=data.reduce((s,d)=>s+d.excl,0)/data.length;
+  html+=`<div class="card"><div class="card-title" style="margin-bottom:12px;">Seizoenspatroon</div>
+    <p style="color:var(--text2);font-size:14px;line-height:1.8;margin-bottom:14px;">Gemiddelde omzet per kalendermaand over alle jaren (% t.o.v. jaargemiddelde):</p>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;">`;
+  for(let m=0;m<12;m++){
+    const rows=data.filter(d=>d.maand===m);if(!rows.length)continue;
+    const avg=rows.reduce((s,d)=>s+d.excl,0)/rows.length,rel=(avg/oa-1)*100;
+    const c=rel>=15?'var(--pos)':rel<=-15?'var(--neg)':'var(--text2)';
+    html+=`<div style="background:var(--bg2);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:11px;color:var(--text3);margin-bottom:2px;font-family:'DM Mono',monospace;">${MONTHS[m]}</div><div style="font-size:13px;font-weight:500;">${eur0(avg)}</div><div style="font-size:11px;color:${c};margin-top:2px;">${rel>=0?'+':''}${rel.toFixed(0)}%</div></div>`;
+  }
+  html+=`</div></div><div class="card"><div class="card-title" style="margin-bottom:12px;">Efficiëntie & conversie per jaar</div><div class="insights-grid">`;
+  for(const y of yrs){
+    const rows=byYear(y);const aB=rows.reduce((s,d)=>s+d.ppbon,0)/rows.length,aV=rows.reduce((s,d)=>s+d.ppbez,0)/rows.length;
+    const tBn=rows.reduce((s,d)=>s+d.bons,0),tBz=rows.reduce((s,d)=>s+d.bez,0);
+    html+=`<div class="insight-card info"><div class="insight-title">${y} — ${rows.length} maanden</div><div class="insight-text">Gem. per bon: <strong>${eur(aB)}</strong> · Per bezoeker: <strong>${eur(aV)}</strong><br>Conversie: <strong>${tBz?(tBn/tBz*100).toFixed(1):0}%</strong> (${num(tBn)} bons / ${num(tBz)} bez.)</div></div>`;
+  }
+  html+=`</div></div>`;
+  document.getElementById('analyse-sub').textContent=`Gegenereerd op basis van ${data.length} maanden — ${yrs[0]} t/m ${cur}`;
+  document.getElementById('analyse-content').innerHTML=html;
+}
+
+// ── Invoer ─────────────────────────────
+function addMonth() {
+  if(!unlocked)return;
+  const jaar=parseInt(document.getElementById('f-jaar').value);
+  const maand=parseInt(document.getElementById('f-maand').value);
+  const excl=parseFloat(document.getElementById('f-excl').value);
+  const incl=parseFloat(document.getElementById('f-incl').value);
+  const bons=parseInt(document.getElementById('f-bon').value);
+  const bez=parseInt(document.getElementById('f-bez').value);
+  let ppbon=parseFloat(document.getElementById('f-ppbon').value);
+  let ppbez=parseFloat(document.getElementById('f-ppbez').value);
+  const msg=document.getElementById('form-msg');
+  if(isNaN(excl)||isNaN(incl)||isNaN(bons)||isNaN(bez)){msg.className='form-msg error';msg.textContent='Vul alle verplichte velden in.';return;}
+  if(data.find(d=>d.jaar===jaar&&d.maand===maand)){msg.className='form-msg error';msg.textContent=`Er bestaat al een rij voor ${MONTHS_FULL[maand]} ${jaar}.`;return;}
+  if(isNaN(ppbon))ppbon=bons>0?+(incl/bons).toFixed(2):0;
+  if(isNaN(ppbez))ppbez=bez>0?+(incl/bez).toFixed(2):0;
+  data.push({jaar,maand,excl,incl,bons,bez,ppbon,ppbez});
+  data.sort((a,b)=>a.jaar*100+a.maand-(b.jaar*100+b.maand));
+  msg.className='form-msg success';msg.textContent=`${MONTHS_FULL[maand]} ${jaar} toegevoegd.`;
+  resetForm(false);renderAll();
+  setTimeout(()=>{msg.className='form-msg';},4000);
+}
+function resetForm(cm=true){['f-excl','f-incl','f-bon','f-bez','f-ppbon','f-ppbez'].forEach(id=>document.getElementById(id).value='');if(cm)document.getElementById('form-msg').className='form-msg';}
+
+// ── Nav ────────────────────────────────
+function showPage(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById(id+'-page').classList.add('active');
+  if(btn)btn.classList.add('active');
+}
+
+// ── Export ─────────────────────────────
+function exportCSV(){
+  const rows=data.map(d=>[MONTHS[d.maand],d.jaar,d.excl.toFixed(2),d.incl.toFixed(2),d.bons,d.bez,d.ppbon.toFixed(2),d.ppbez.toFixed(2)].join(';'));
+  const csv=['maand;jaar;omzet_excl_btw;omzet_incl_btw;kassabonnen;filmbezoekers;per_bon;per_bezoeker',...rows].join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download='gigant_horeca_data.csv';a.click();
+}
+
+// ── Per bezoeker ───────────────────────
+let pbMaanden = [0,1,2,3,4,5,6,7,8,9,10,11]; // selected months
+let pbJaren = null; // null = all years
+
+function renderPpbez() {
+  const yrs = years();
+  if (!pbJaren) pbJaren = [...yrs];
+
+  // Metric cards
+  const allPpbez = data.map(d=>d.ppbez);
+  const maxV = Math.max(...allPpbez), minV = Math.min(...allPpbez);
+  const maxR = data.find(d=>d.ppbez===maxV), minR = data.find(d=>d.ppbez===minV);
+  const cur = yrs[yrs.length-1], prev = cur-1;
+  const avgCur = avgY(cur,'ppbez'), avgPrev = avgY(prev,'ppbez');
+  const delta = avgPrev ? (avgCur-avgPrev)/avgPrev*100 : null;
+  const convCur = (() => { const r=byYear(cur); const tb=r.reduce((s,d)=>s+d.bons,0),tv=r.reduce((s,d)=>s+d.bez,0); return tv?(tb/tv*100):0; })();
+
+  document.getElementById('ppbez-metrics').innerHTML = `
+    <div class="metric-card"><div class="metric-label">Gem. per bezoeker ${cur}</div><div class="metric-value">${eur(avgCur)}</div><div class="metric-delta ${delta>=0?'pos':'neg'}">${delta!==null?(delta>=0?'▲':'▼')+' '+Math.abs(delta).toFixed(1)+'% vs '+prev:'—'}</div></div>
+    <div class="metric-card"><div class="metric-label">Recordmaand</div><div class="metric-value">${eur(maxV)}</div><div class="metric-delta neutral">${maxR?ml(maxR):''}</div></div>
+    <div class="metric-card"><div class="metric-label">Laagste maand</div><div class="metric-value">${eur(minV)}</div><div class="metric-delta neutral">${minR?ml(minR):''}</div></div>
+    <div class="metric-card"><div class="metric-label">Conversie ${cur}</div><div class="metric-value">${convCur.toFixed(1)}%</div><div class="metric-delta neutral">Bon / bezoeker</div></div>
+  `;
+
+  // Tijdlijn
+  const sorted = [...data].sort((a,b)=>a.jaar*100+a.maand-(b.jaar*100+b.maand));
+  const lbs = sorted.map(d=>ml(d));
+  const colPts = sorted.map(d=>YEAR_COLORS[d.jaar]||'#888');
+  const xTicks = {...baseOpts.scales.x.ticks, maxRotation:45, autoSkip:false, callback:(v,i)=>i%2===0?lbs[i]:''};
+  mkLegend('lg-ppbez2', yrs);
+  mkChart('c-ppbez2','line',{labels:lbs,datasets:[{
+    data:sorted.map(d=>d.ppbez),
+    borderColor:'#0F6E56', backgroundColor:'rgba(15,110,86,0.07)',
+    tension:0.35, fill:true, pointRadius:4,
+    pointBackgroundColor:colPts, pointBorderColor:'#fff', pointBorderWidth:1.5
+  }]},{...baseOpts,scales:{...baseOpts.scales,x:{...baseOpts.scales.x,ticks:xTicks},y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>'€'+v.toFixed(2)}}}});
+
+  // Build filter pills
+  buildPpbezPills();
+
+  // Vergelijker chart
+  renderVergelijker();
+
+  // Heatmap
+  renderHeatmap();
+
+  // Ranking
+  const ranked = [...data].sort((a,b)=>b.ppbez-a.ppbez);
+  document.getElementById('ppbez-ranking').innerHTML = ranked.map((d,i)=>{
+    const conv = d.bez ? (d.bons/d.bez*100).toFixed(1)+'%' : '—';
+    const cls = i===0?'rank-best':i===ranked.length-1?'rank-worst':'';
+    return `<tr class="${cls}">
+      <td style="text-align:left;font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);">${i+1}</td>
+      <td style="text-align:left;">${MONTHS_FULL[d.maand]} ${d.jaar}</td>
+      <td>${eur(d.ppbez)}</td>
+      <td>${eur(d.ppbon)}</td>
+      <td>${num(d.bez)}</td>
+      <td>${num(d.bons)}</td>
+      <td>${conv}</td>
+      <td>${eur(d.excl)}</td>
+    </tr>`;
+  }).join('');
+
+  // Inzichten
+  renderPpbezInsights();
+}
+
+function buildPpbezPills() {
+  const yrs = years();
+
+  // Month pills
+  const mp = document.getElementById('month-pills');
+  if (!mp.hasChildNodes()) {
+    mp.innerHTML = '<span class="filter-label">Maanden</span>' +
+      MONTHS.map((m,i)=>`<button class="pill on" id="mp-${i}" onclick="toggleMaand(${i})">${m}</button>`).join('') +
+      '<div class="filter-divider"></div>' +
+      '<button class="btn-sm" onclick="selectAllMaanden(true)" style="font-size:11px;padding:4px 10px;">Alles</button>' +
+      '<button class="btn-sm" onclick="selectAllMaanden(false)" style="font-size:11px;padding:4px 10px;">Geen</button>';
+  }
+  // Year pills
+  const yp = document.getElementById('year-pills');
+  yp.innerHTML = '<span class="filter-label" style="margin-right:4px;">Jaren</span>' +
+    yrs.map(y=>`<button class="pill on" id="yp-${y}" style="border-radius:6px;background:${pbJaren.includes(y)?YEAR_COLORS[y]||'var(--accent)':'transparent'};border-color:${YEAR_COLORS[y]||'var(--border2)'};color:${pbJaren.includes(y)?'#fff':'var(--text2)'};" onclick="toggleJaar(${y})">${y}</button>`).join('');
+}
+
+function toggleMaand(i) {
+  if (pbMaanden.includes(i)) {
+    if (pbMaanden.length > 1) pbMaanden = pbMaanden.filter(m=>m!==i);
+  } else {
+    pbMaanden.push(i);
+  }
+  pbMaanden.sort((a,b)=>a-b);
+  document.getElementById('mp-'+i).classList.toggle('on', pbMaanden.includes(i));
+  renderVergelijker();
+}
+
+function selectAllMaanden(all) {
+  pbMaanden = all ? [0,1,2,3,4,5,6,7,8,9,10,11] : [0];
+  MONTHS.forEach((_,i) => { const el=document.getElementById('mp-'+i); if(el) el.classList.toggle('on', pbMaanden.includes(i)); });
+  renderVergelijker();
+}
+
+function toggleJaar(y) {
+  const yrs = years();
+  if (pbJaren.includes(y)) {
+    if (pbJaren.length > 1) pbJaren = pbJaren.filter(j=>j!==y);
+  } else {
+    pbJaren.push(y);
+  }
+  pbJaren.sort();
+  buildPpbezPills();
+  renderVergelijker();
+}
+
+function renderVergelijker() {
+  const yrs = pbJaren || years();
+  const labels = pbMaanden.map(i=>MONTHS_FULL[i]);
+  const datasets = yrs.map(y => ({
+    label: String(y),
+    data: pbMaanden.map(m => { const r=data.find(d=>d.jaar===y&&d.maand===m); return r?r.ppbez:null; }),
+    backgroundColor: (YEAR_COLORS[y]||'#888') + 'cc',
+    borderColor: YEAR_COLORS[y]||'#888',
+    borderWidth: 1, borderRadius: 4,
+  }));
+  mkLegend('lg-vergelijker', yrs);
+  const info = `${pbMaanden.length} maand${pbMaanden.length!==1?'en':''} geselecteerd · ${yrs.length} jaar${yrs.length!==1?'':''} · klik op een maand of jaar om te filteren`;
+  document.getElementById('vergelijker-info').textContent = info;
+  mkChart('c-vergelijker','bar',{labels,datasets},{
+    ...baseOpts,
+    plugins:{...baseOpts.plugins, legend:{display:false}},
+    scales:{...baseOpts.scales, y:{...baseOpts.scales.y,ticks:{...baseOpts.scales.y.ticks,callback:v=>'€'+v.toFixed(2)},min:0}}
+  });
+}
+
+function renderHeatmap() {
+  const yrs = years();
+  // Color scale: find min/max ppbez
+  const vals = data.map(d=>d.ppbez);
+  const lo = Math.min(...vals), hi = Math.max(...vals);
+  const lerp = (v) => (v-lo)/(hi-lo);
+  const heatColor = (v) => {
+    const t = lerp(v);
+    // lo = cool blue, hi = warm orange
+    const r = Math.round(42 + t*(212-42));
+    const g = Math.round(107 + t*(96-107));
+    const b = Math.round(142 + t*(10-142));
+    return `rgb(${r},${g},${b})`;
+  };
+  const textColor = (v) => lerp(v) > 0.5 ? '#fff' : '#1E1A14';
+
+  let html = `<div style="display:grid;grid-template-columns:50px repeat(12,1fr);gap:3px;min-width:560px;">`;
+  // Header row
+  html += `<div></div>` + MONTHS.map(m=>`<div class="hm-xlabel">${m}</div>`).join('');
+  // Data rows
+  for (const y of yrs) {
+    html += `<div class="hm-ylabel">${y}</div>`;
+    for (let m=0;m<12;m++) {
+      const row = data.find(d=>d.jaar===y&&d.maand===m);
+      if (row) {
+        const bg = heatColor(row.ppbez);
+        const tc = textColor(row.ppbez);
+        html += `<div class="hm-cell" style="background:${bg};color:${tc};" title="${MONTHS_FULL[m]} ${y}: ${eur(row.ppbez)}">${row.ppbez.toFixed(2)}</div>`;
+      } else {
+        html += `<div class="hm-cell" style="background:var(--bg2);color:var(--text3);">—</div>`;
+      }
+    }
+  }
+  // Legend bar
+  html += `<div></div><div style="grid-column:2/-1;display:flex;align-items:center;gap:8px;padding:6px 0;">`;
+  html += `<span style="font-size:10px;font-family:'DM Mono',monospace;color:var(--text3);">${eur(lo)}</span>`;
+  html += `<div style="flex:1;height:8px;border-radius:4px;background:linear-gradient(to right,rgb(42,107,142),rgb(212,96,10));"></div>`;
+  html += `<span style="font-size:10px;font-family:'DM Mono',monospace;color:var(--text3);">${eur(hi)}</span>`;
+  html += `</div></div>`;
+  document.getElementById('heatmap-wrap').innerHTML = html;
+}
+
+function renderPpbezInsights() {
+  const yrs = years();
+  const cur = yrs[yrs.length-1];
+  const ins = [];
+
+  // Best month pattern
+  const byMaand = MONTHS.map((_,i) => {
+    const rows = data.filter(d=>d.maand===i);
+    return rows.length ? rows.reduce((s,d)=>s+d.ppbez,0)/rows.length : 0;
+  });
+  const bestMaand = byMaand.indexOf(Math.max(...byMaand.filter(v=>v>0)));
+  const worstMaand = byMaand.indexOf(Math.min(...byMaand.filter(v=>v>0)));
+  ins.push({t:'good',h:'Structureel beste maand',b:`${MONTHS_FULL[bestMaand]} is gemiddeld de sterkste maand voor bestedingen per bezoeker (${eur(byMaand[bestMaand])} gemiddeld over alle jaren).`});
+  ins.push({t:'warning',h:'Structureel zwakste maand',b:`${MONTHS_FULL[worstMaand]} is gemiddeld de zwakste maand (${eur(byMaand[worstMaand])}). Lage bezetting lijkt samen te gaan met lagere besteding per hoofd.`});
+
+  // Correlation bezoekers vs ppbez
+  const n = data.length;
+  const avgBez2 = data.reduce((s,d)=>s+d.bez,0)/n;
+  const avgPb = data.reduce((s,d)=>s+d.ppbez,0)/n;
+  const cov = data.reduce((s,d)=>s+(d.bez-avgBez2)*(d.ppbez-avgPb),0)/n;
+  const sdBez = Math.sqrt(data.reduce((s,d)=>s+Math.pow(d.bez-avgBez2,2),0)/n);
+  const sdPb = Math.sqrt(data.reduce((s,d)=>s+Math.pow(d.ppbez-avgPb,2),0)/n);
+  const corr = sdBez&&sdPb ? cov/(sdBez*sdPb) : 0;
+  const corrDir = corr > 0.2 ? 'positief' : corr < -0.2 ? 'negatief' : 'nauwelijks';
+  ins.push({t:'info',h:'Relatie bezoekers & besteding',b:`Er is een ${corrDir} verband (r = ${corr.toFixed(2)}) tussen het aantal filmbezoekers en de besteding per bezoeker. ${corr>0.2?'Drukkere maanden leveren gemiddeld meer op per hoofd.':corr<-0.2?'Bij hogere bezetting daalt de besteding per bezoeker.':'Bezoekersdrukte verklaart de besteding per bezoeker niet sterk.'}`});
+
+  // Year trend
+  if (yrs.length >= 2) {
+    const vals = yrs.map(y=>avgY(y,'ppbez')).filter(v=>v>0);
+    const trend = vals[vals.length-1] - vals[0];
+    ins.push({t:trend>=0?'good':'warning',h:'Meerjaarse trend',b:`Gemiddelde besteding per bezoeker: ${yrs.map(y=>y+' '+eur(avgY(y,'ppbez'))).join(' → ')}. Trend over de gehele periode: ${trend>=0?'+':''}${eur(trend)} per bezoeker.`});
+  }
+
+  document.getElementById('ppbez-insights').innerHTML = ins.map(i=>`<div class="insight-card ${i.t}"><div class="insight-title">${i.h}</div><div class="insight-text">${i.b}</div></div>`).join('');
+}
+
+// ── Hard refresh ───────────────────────
+function hardRefresh() {
+  Object.keys(charts).forEach(id => { try { charts[id].destroy(); } catch(e){} delete charts[id]; });
+  renderAll();
+  const btn=document.getElementById('refresh-btn');
+  btn.textContent='✓ Vernieuwd';
+  setTimeout(()=>{ btn.textContent='↺ Vernieuwen'; },1500);
+}
+
+// ── Init ───────────────────────────────
+renderAll();
+</script>
+</body>
+</html>
